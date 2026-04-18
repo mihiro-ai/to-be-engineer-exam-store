@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma/sqlite-migration"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model BuyerAccess {
+  id              String     @id
+  email           String     @unique
+  accessTokenHash String?    @unique
+  tokenIssuedAt   DateTime?
+  createdAt       DateTime
+  updatedAt       DateTime
+  purchases       Purchase[]
+}
+
+model Purchase {
+  id                  String      @id
+  stripeSessionId     String      @unique
+  stripePaymentIntent String?
+  stripeCustomerId    String?
+  customerEmail       String
+  productSlug         String
+  productName         String
+  paymentStatus       String
+  amountTotal         Int?
+  currency            String?
+  paidAt              DateTime
+  createdAt           DateTime
+  updatedAt           DateTime
+  buyerAccessId       String
+  buyerAccess         BuyerAccess @relation(fields: [buyerAccessId], references: [id], onDelete: Cascade)
+
+  @@index([buyerAccessId, paidAt])
+  @@index([customerEmail, paidAt])
+  @@index([productSlug])
+}

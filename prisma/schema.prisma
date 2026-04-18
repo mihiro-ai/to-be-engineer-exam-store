@@ -1,0 +1,44 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model BuyerAccess {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  accessTokenHash String?    @unique
+  tokenIssuedAt   DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  purchases       Purchase[]
+}
+
+model Purchase {
+  id                   String      @id @default(cuid())
+  stripeSessionId      String      @unique
+  stripePaymentIntent  String?
+  stripeCustomerId     String?
+  customerEmail        String
+  productSlug          String
+  productName          String
+  paymentStatus        String
+  amountTotal          Int?
+  currency             String?
+  paidAt               DateTime
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  buyerAccessId        String
+  buyerAccess          BuyerAccess @relation(fields: [buyerAccessId], references: [id], onDelete: Cascade)
+
+  @@index([buyerAccessId, paidAt])
+  @@index([customerEmail, paidAt])
+  @@index([productSlug])
+}
