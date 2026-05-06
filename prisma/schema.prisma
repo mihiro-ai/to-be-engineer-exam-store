@@ -42,3 +42,20 @@ model Purchase {
   @@index([customerEmail, paidAt])
   @@index([productSlug])
 }
+
+model DailyPageView {
+  id              String   @id @default(cuid())
+  dateKey         String
+  pageKey         String
+  scopeKey        String
+  path            String
+  productSlug     String?
+  productCategory String?
+  views           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([dateKey, pageKey, scopeKey])
+  @@index([dateKey, pageKey])
+  @@index([pageKey, productCategory, dateKey])
+}

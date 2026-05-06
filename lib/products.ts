@@ -7,6 +7,16 @@ export const PRODUCT_SLUGS = [
 
 export type ProductSlug = (typeof PRODUCT_SLUGS)[number];
 
+export const PRODUCT_ANALYTICS_CATEGORIES = {
+  "full-set": "全分野",
+  mechanical: "機械分野",
+  electrical: "電気電子分野",
+  information: "情報分野",
+} as const satisfies Record<ProductSlug, string>;
+
+export type ProductAnalyticsCategory =
+  (typeof PRODUCT_ANALYTICS_CATEGORIES)[ProductSlug];
+
 export type ProductSample = {
   question: string;
   answer: string;
@@ -307,6 +317,10 @@ export function getProductBySlug(slug: string | undefined | null) {
 
 export function getRelatedProducts(slug: ProductSlug) {
   return products.filter((product) => product.slug !== slug);
+}
+
+export function getProductAnalyticsCategory(slug: ProductSlug) {
+  return PRODUCT_ANALYTICS_CATEGORIES[slug];
 }
 
 export function getPurchasedWorkbookLinks(slug: ProductSlug): PurchasedWorkbookLink[] {
