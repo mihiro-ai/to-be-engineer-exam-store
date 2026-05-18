@@ -13,6 +13,7 @@ type PurchaseAccessRequestResponse = {
   sentTo?: string;
   message?: string;
   error?: string;
+  reason?: "purchaseNotFound";
   previewText?: string | null;
 };
 
@@ -74,9 +75,13 @@ export default function PurchaseAccessRequestCard({
     ? "px-1 text-xs leading-6 text-slate-300/90 sm:text-sm"
     : "px-1 text-xs leading-5 text-slate-500 sm:text-sm sm:leading-7";
 
-  const messageBoxClassName = isSuccessPageVariant
-    ? "mt-5 rounded-[1.25rem] border border-white/10 bg-white/[0.08] p-4"
-    : "mt-5 rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4";
+  const messageBoxClassName = isErrorMessage
+    ? isSuccessPageVariant
+      ? "mt-5 rounded-[1.25rem] border border-rose-300/30 bg-rose-950/20 p-4"
+      : "mt-5 rounded-[1.25rem] border border-rose-200 bg-rose-50 p-4"
+    : isSuccessPageVariant
+      ? "mt-5 rounded-[1.25rem] border border-white/10 bg-white/[0.08] p-4"
+      : "mt-5 rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4";
 
   const messageTextClassName = isErrorMessage
     ? isSuccessPageVariant
@@ -133,8 +138,10 @@ export default function PurchaseAccessRequestCard({
 
       const nextMessage =
         data?.message ??
-        "該当する購入情報がありません。";
-      setIsErrorMessage(data?.delivered !== true);
+        "入力されたメールアドレスの購入情報が見つかりませんでした。購入時に使用した別のメールアドレスでお試しください。";
+      setIsErrorMessage(
+        data?.reason === "purchaseNotFound" || data?.delivered !== true,
+      );
       setMessage(nextMessage);
       setPreviewText(data?.previewText ?? null);
     } catch (error) {

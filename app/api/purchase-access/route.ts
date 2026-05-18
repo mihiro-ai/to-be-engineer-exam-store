@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { sendPurchaseAccessEmail } from "@/lib/email";
-import { getProductBySlug } from "@/lib/products";
 import {
   buildPurchaseAccessEmail,
   createAccessToken,
@@ -11,6 +9,10 @@ import {
   hashAccessToken,
   normalizeEmail,
 } from "@/lib/purchase-access";
+import {
+  findPurchaseByStripeSessionId,
+  upsertPurchaseFromStripeSession,
+} from "@/lib/purchases";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -34,33 +36,6 @@ function getBaseUrl(request: Request) {
   return requestOrigin;
 }
 
-function getStripeResourceId(value: { id: string } | string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  return typeof value === "string" ? value : value.id;
-}
-
-async function findPurchaseBySessionId(sessionId: string) {
-  return db.purchase.findUnique({
-    where: {
-      stripeSessionId: sessionId,
-    },
-    include: {
-      buyerAccess: {
-        include: {
-          purchases: {
-            orderBy: {
-              paidAt: "desc",
-            },
-          },
-        },
-      },
-    },
-  });
-}
-
 async function findBuyerAccessByEmail(email: string) {
   return db.buyerAccess.findUnique({
     where: {
@@ -76,114 +51,8 @@ async function findBuyerAccessByEmail(email: string) {
   });
 }
 
-async function upsertPurchaseFromStripeSession(
-  session: Stripe.Checkout.Session,
-  fallbackCustomerEmail?: string | null,
-) {
-  const product = getProductBySlug(session.metadata?.productSlug);
-  const customerEmail =
-    session.customer_details?.email ??
-    session.customer_email ??
-    fallbackCustomerEmail;
-
-  if (!product) {
-    throw new Error("購入対象の商品情報を復元できませんでした。");
-  }
-
-  if (!customerEmail) {
-    throw new Error("購入者メールアドレスを確認できませんでした。");
-  }
-
-  if (session.payment_status !== "paid") {
-    throw new Error("決済完了の確認が取れていません。数秒後に再度お試しください。");
-  }
-
-  const normalizedEmail = normalizeEmail(customerEmail);
-  const buyerAccess = await db.buyerAccess.upsert({
-    where: {
-      email: normalizedEmail,
-    },
-    update: {},
-    create: {
-      email: normalizedEmail,
-    },
-  });
-
-  await db.purchase.upsert({
-    where: {
-      stripeSessionId: session.id,
-    },
-    update: {
-      stripePaymentIntent: getStripeResourceId(
-        session.payment_intent as { id: string } | string | null | undefined,
-      ),
-      stripeCustomerId: getStripeResourceId(
-        session.customer as { id: string } | string | null | undefined,
-      ),
-      customerEmail: normalizedEmail,
-      productSlug: product.slug,
-      productName: product.name,
-      paymentStatus: session.payment_status,
-      amountTotal: session.amount_total,
-      currency: session.currency,
-      paidAt: new Date((session.created ?? Math.floor(Date.now() / 1000)) * 1000),
-      buyerAccessId: buyerAccess.id,
-    },
-    create: {
-      stripeSessionId: session.id,
-      stripePaymentIntent: getStripeResourceId(
-        session.payment_intent as { id: string } | string | null | undefined,
-      ),
-      stripeCustomerId: getStripeResourceId(
-        session.customer as { id: string } | string | null | undefined,
-      ),
-      customerEmail: normalizedEmail,
-      productSlug: product.slug,
-      productName: product.name,
-      paymentStatus: session.payment_status,
-      amountTotal: session.amount_total,
-      currency: session.currency,
-      paidAt: new Date((session.created ?? Math.floor(Date.now() / 1000)) * 1000),
-      buyerAccessId: buyerAccess.id,
-    },
-  });
-}
-
-async function syncPaidStripePurchasesByEmail(email: string) {
-  const normalizedEmail = normalizeEmail(email);
-  const stripe = getStripe();
-  const customers = await stripe.customers.list({
-    email: normalizedEmail,
-    limit: 100,
-  });
-
-  for (const customer of customers.data) {
-    const sessions = await stripe.checkout.sessions.list({
-      customer: customer.id,
-      limit: 100,
-    });
-
-    for (const session of sessions.data) {
-      const sessionEmail =
-        session.customer_details?.email ??
-        session.customer_email ??
-        customer.email;
-
-      if (
-        session.payment_status !== "paid" ||
-        !session.metadata?.productSlug ||
-        normalizeEmail(sessionEmail ?? "") !== normalizedEmail
-      ) {
-        continue;
-      }
-
-      await upsertPurchaseFromStripeSession(session, customer.email);
-    }
-  }
-}
-
 async function findOrCreatePurchase(sessionId: string) {
-  const existingPurchase = await findPurchaseBySessionId(sessionId);
+  const existingPurchase = await findPurchaseByStripeSessionId(sessionId);
 
   if (existingPurchase) {
     return existingPurchase;
@@ -192,7 +61,7 @@ async function findOrCreatePurchase(sessionId: string) {
   const session = await getStripe().checkout.sessions.retrieve(sessionId);
   await upsertPurchaseFromStripeSession(session);
 
-  return findPurchaseBySessionId(session.id);
+  return findPurchaseByStripeSessionId(session.id);
 }
 
 export async function POST(request: Request) {
@@ -222,22 +91,19 @@ export async function POST(request: Request) {
     );
   }
 
-  let buyerAccess = purchase
+  const buyerAccess = purchase
     ? purchase.buyerAccess
     : email
       ? await findBuyerAccessByEmail(email)
       : null;
 
-  if (email && (!buyerAccess || buyerAccess.purchases.length === 0)) {
-    await syncPaidStripePurchasesByEmail(email).catch(() => undefined);
-    buyerAccess = await findBuyerAccessByEmail(email);
-  }
-
   if (!buyerAccess || buyerAccess.purchases.length === 0) {
     return NextResponse.json({
       ok: true,
       delivered: false,
-      message: "該当する購入情報がありません。",
+      reason: "purchaseNotFound",
+      message:
+        "入力されたメールアドレスの購入情報がありません。購入時に使用した別のメールアドレスでお試しください。",
     });
   }
 

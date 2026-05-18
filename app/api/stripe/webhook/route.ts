@@ -1,8 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { getProductBySlug } from "@/lib/products";
-import { normalizeEmail } from "@/lib/purchase-access";
+import { upsertPurchaseFromStripeSession } from "@/lib/purchases";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -23,92 +21,29 @@ function getWebhookVerificationErrorMessage(error: unknown) {
   };
 }
 
-function getStripeResourceId(value: { id: string } | string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  return typeof value === "string" ? value : value.id;
-}
-
 async function handleCheckoutSessionCompleted(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session;
-  const product = getProductBySlug(session.metadata?.productSlug);
-  const customerEmail = session.customer_details?.email ?? session.customer_email;
-
-  if (!product) {
-    console.warn("Stripe checkout.session.completed skipped: unknown product", {
+  const purchase = await upsertPurchaseFromStripeSession(session).catch((error) => {
+    console.warn("Stripe checkout.session.completed skipped", {
       sessionId: session.id,
       productSlug: session.metadata?.productSlug ?? null,
+      error: error instanceof Error ? error.message : "unknown error",
     });
-    return;
-  }
 
-  if (!customerEmail) {
-    console.warn("Stripe checkout.session.completed skipped: missing customer email", {
-      sessionId: session.id,
-      productSlug: product.slug,
-    });
-    return;
-  }
-
-  const normalizedEmail = normalizeEmail(customerEmail);
-  const buyerAccess = await db.buyerAccess.upsert({
-    where: {
-      email: normalizedEmail,
-    },
-    update: {},
-    create: {
-      email: normalizedEmail,
-    },
+    return null;
   });
 
-  await db.purchase.upsert({
-    where: {
-      stripeSessionId: session.id,
-    },
-    update: {
-      stripePaymentIntent: getStripeResourceId(
-        session.payment_intent as { id: string } | string | null | undefined,
-      ),
-      stripeCustomerId: getStripeResourceId(
-        session.customer as { id: string } | string | null | undefined,
-      ),
-      customerEmail: normalizedEmail,
-      productSlug: product.slug,
-      productName: product.name,
-      paymentStatus: session.payment_status,
-      amountTotal: session.amount_total,
-      currency: session.currency,
-      paidAt: new Date((session.created ?? Math.floor(Date.now() / 1000)) * 1000),
-      buyerAccessId: buyerAccess.id,
-    },
-    create: {
-      stripeSessionId: session.id,
-      stripePaymentIntent: getStripeResourceId(
-        session.payment_intent as { id: string } | string | null | undefined,
-      ),
-      stripeCustomerId: getStripeResourceId(
-        session.customer as { id: string } | string | null | undefined,
-      ),
-      customerEmail: normalizedEmail,
-      productSlug: product.slug,
-      productName: product.name,
-      paymentStatus: session.payment_status,
-      amountTotal: session.amount_total,
-      currency: session.currency,
-      paidAt: new Date((session.created ?? Math.floor(Date.now() / 1000)) * 1000),
-      buyerAccessId: buyerAccess.id,
-    },
-  });
+  if (!purchase) {
+    return;
+  }
 
   console.info("Stripe checkout.session.completed received", {
     sessionId: session.id,
-    paymentStatus: session.payment_status,
-    productSlug: product.slug,
-    productName: product.name,
-    customerEmail: normalizedEmail,
-    buyerAccessId: buyerAccess.id,
+    paymentStatus: purchase.paymentStatus,
+    productSlug: purchase.productSlug,
+    productName: purchase.productName,
+    customerEmail: purchase.customerEmail,
+    buyerAccessId: purchase.buyerAccessId,
   });
 }
 

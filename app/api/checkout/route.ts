@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 import { getProductBySlug } from "@/lib/products";
+import { normalizeEmail } from "@/lib/purchase-access";
+import { findPurchaseByEmailAndProductSlug } from "@/lib/purchases";
 
 export const runtime = "nodejs";
 
@@ -45,13 +48,19 @@ function getCheckoutErrorMessage(error: unknown) {
   return "チェックアウトの作成に失敗しました。";
 }
 
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export async function POST(request: Request) {
   try {
     const baseUrl = getBaseUrl(request);
     const body = (await request.json().catch(() => null)) as {
       productSlug?: string;
+      customerEmail?: string;
     } | null;
     const product = getProductBySlug(body?.productSlug);
+    const customerEmail = normalizeEmail(body?.customerEmail ?? "");
 
     if (!product) {
       return NextResponse.json(
@@ -60,9 +69,41 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!customerEmail || !isValidEmail(customerEmail)) {
+      return NextResponse.json(
+        { error: "有効なメールアドレスを入力してください。" },
+        { status: 400 },
+      );
+    }
+
+    const existingPurchase = await findPurchaseByEmailAndProductSlug(
+      customerEmail,
+      product.slug,
+    );
+
+    if (existingPurchase) {
+      const purchaseAccessUrl = getAbsoluteUrl(
+        baseUrl,
+        `/purchase-access?alreadyPurchased=1&product=${encodeURIComponent(product.slug)}`,
+      );
+
+      return NextResponse.json({ url: purchaseAccessUrl });
+    }
+
+    await db.buyerAccess.upsert({
+      where: {
+        email: customerEmail,
+      },
+      update: {},
+      create: {
+        email: customerEmail,
+      },
+    });
+
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      customer_email: customerEmail,
       customer_creation: "always",
       line_items: [
         {
@@ -81,6 +122,7 @@ export async function POST(request: Request) {
       metadata: {
         productSlug: product.slug,
         productName: product.name,
+        customerEmail,
       },
       success_url: `${baseUrl}/success?product=${product.slug}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: getProductPageUrl(baseUrl, product.slug),
