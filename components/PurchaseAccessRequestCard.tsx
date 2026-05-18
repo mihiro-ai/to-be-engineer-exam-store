@@ -134,7 +134,7 @@ export default function PurchaseAccessRequestCard({
       const nextMessage =
         data?.message ??
         "該当する購入情報がありません。";
-      setIsErrorMessage(nextMessage === "該当する購入情報がありません。");
+      setIsErrorMessage(data?.delivered !== true);
       setMessage(nextMessage);
       setPreviewText(data?.previewText ?? null);
     } catch (error) {

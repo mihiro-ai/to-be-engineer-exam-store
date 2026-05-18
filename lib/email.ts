@@ -10,6 +10,7 @@ type SendEmailInput = {
 type SendEmailResult = {
   delivered: boolean;
   previewOnly: boolean;
+  sendFailed: boolean;
 };
 
 let resendClient: Resend | null = null;
@@ -53,19 +54,35 @@ export async function sendPurchaseAccessEmail({
     return {
       delivered: false,
       previewOnly: true,
+      sendFailed: false,
     };
   }
 
-  await resend.emails.send({
-    from,
-    to,
-    subject,
-    html,
-    text,
-  });
+  try {
+    await resend.emails.send({
+      from,
+      to,
+      subject,
+      html,
+      text,
+    });
+  } catch (error) {
+    console.error("Resend でのメール送信に失敗しました。", {
+      to,
+      fromConfigured: Boolean(from),
+      message: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      delivered: false,
+      previewOnly: false,
+      sendFailed: true,
+    };
+  }
 
   return {
     delivered: true,
     previewOnly: false,
+    sendFailed: false,
   };
 }

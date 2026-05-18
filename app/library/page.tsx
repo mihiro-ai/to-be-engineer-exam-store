@@ -24,25 +24,60 @@ function EmptyState({
   description: string;
 }) {
   return (
-    <main className="min-h-screen w-full px-4 py-8 sm:px-6 sm:py-12">
-      <div className="mx-auto max-w-3xl rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_28px_90px_rgba(16,24,40,0.18)] sm:p-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Purchase Library
-        </p>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
-          {title}
-        </h1>
-        <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
-          {description}
-        </p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            一覧ページへ戻る
-          </Link>
-        </div>
+    <main className="min-h-screen w-full bg-[#19344a] px-0 sm:px-6 sm:py-6">
+      <div className="mx-auto max-w-6xl">
+        <section className="overflow-hidden bg-[#19344a]">
+          <div className="bg-[#19344a] px-5 py-6 sm:px-10 sm:py-10">
+            <div className="space-y-4">
+              <Link
+                href="/"
+                className="inline-flex w-fit items-center gap-2 text-[11px] font-medium text-slate-300 transition hover:text-white sm:text-sm"
+              >
+                <span aria-hidden="true">←</span>
+                トップページへ戻る
+              </Link>
+              <div className="space-y-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-100/80">
+                  Buyer Library
+                </p>
+                <h1 className="text-lg font-bold tracking-tight text-white sm:text-4xl">
+                  {title}
+                </h1>
+                <p className="max-w-3xl text-xs leading-5 text-slate-300 sm:text-base sm:leading-7">
+                  {description}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#19344a] px-5 sm:px-10">
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.14)] sm:p-7">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700 sm:text-xs">
+                Purchase Access
+              </p>
+              <h2 className="mt-3 text-lg font-bold tracking-tight text-slate-950 sm:text-2xl">
+                専用リンクを再取得できます
+              </h2>
+              <p className="mt-3 text-xs leading-5 text-slate-600 sm:text-sm sm:leading-7">
+                購入時のメールアドレスが分かる場合は、購入済み教材ページへ戻るためのリンクをメールで受け取れます。
+              </p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/purchase-access"
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-slate-950 px-6 text-xs font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800 sm:text-sm"
+                >
+                  メールから再取得する
+                </Link>
+                <Link
+                  href="/"
+                  className="inline-flex h-12 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:text-sm"
+                >
+                  トップページへ戻る
+                </Link>
+              </div>
+            </section>
+          </div>
+        </section>
       </div>
     </main>
   );
@@ -85,86 +120,169 @@ export default async function LibraryPage({ searchParams }: LibraryPageProps) {
   const workbookLinks = getAccessibleWorkbookLinks(
     buyerAccess.purchases.map((purchase) => purchase.productSlug),
   );
+  const isSingleWorkbookCategory = workbookLinks.length === 1;
+  const workbookGridColumns =
+    workbookLinks.length === 1
+      ? "lg:grid-cols-1"
+      : workbookLinks.length === 2
+        ? "lg:grid-cols-2"
+        : "lg:grid-cols-3";
   const purchases = buyerAccess.purchases.map((purchase) => ({
     ...purchase,
     product: getProductBySlug(purchase.productSlug),
   }));
 
   return (
-    <main className="min-h-screen w-full px-4 py-8 sm:px-6 sm:py-12">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="overflow-hidden rounded-[2rem] border border-sky-200/70 bg-white shadow-[0_28px_90px_rgba(16,24,40,0.18)]">
-          <div className="bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_35%,#ecfeff_100%)] px-6 py-8 sm:px-10 sm:py-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">
-              Buyer Library
-            </p>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              購入済み問題集ページ
-            </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-              {maskEmailAddress(buyerAccess.email)}
-              に紐づく購入履歴をもとに、アクセス可能な問題集をまとめて表示しています。
-              ページを閉じても、同じ購入者専用リンクからいつでも戻れます。
-            </p>
+    <main className="min-h-screen w-full bg-[#19344a] px-0 pb-4 sm:px-6 sm:py-6">
+      <div className="mx-auto max-w-6xl">
+        <section className="overflow-hidden bg-[#19344a]">
+          <div className="bg-[#19344a] px-5 sm:px-10 py-6">
+            <div>
+              <div className="space-y-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-100/80">
+                  Buyer Library
+                </p>
+                <h1 className="text-lg font-bold tracking-tight text-white sm:text-4xl">
+                  購入済み問題集ページ
+                </h1>
+                <p className="max-w-3xl text-xs leading-5 text-slate-300 sm:text-base sm:leading-7">
+                  {maskEmailAddress(buyerAccess.email)}
+                  に紐づく購入履歴をもとに、アクセス可能な問題集をまとめて表示しています。
+                  ページを閉じても、同じ購入者専用リンクからいつでも戻れます。
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-6 px-6 py-6 sm:px-10 sm:py-10 lg:grid-cols-[1.2fr_0.8fr]">
-            <section className="space-y-5">
+          <div className="grid gap-6 bg-[#19344a] px-5 sm:px-10">
+            <section>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-100/75 sm:text-xs">
                   Workbook Access
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                <h2 className="mt-2 text-lg font-bold tracking-tight text-white sm:text-2xl sm:font-semibold">
                   ここから学習を再開できます
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+                <p className="mt-3 max-w-3xl text-xs leading-6 text-slate-300 sm:text-sm">
                   下記URLは現在ダミーですが、実運用では購入者向けの暗記メーカーURLに差し替えるだけで利用できます。
                 </p>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                {workbookLinks.map((link) => (
+              <div className={`mt-6 grid gap-4 ${workbookGridColumns}`}>
+                {workbookLinks.map((item, index) => (
                   <article
-                    key={link.id}
-                    className="flex h-full flex-col rounded-[1.5rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm"
+                    key={item.id}
+                    className={`flex h-full flex-col p-0 transition duration-200 sm:rounded-[1.5rem] sm:border sm:border-white/10 sm:bg-white/[0.08] sm:p-5 sm:shadow-[0_12px_40px_rgba(2,6,23,0.2)] sm:backdrop-blur sm:hover:-translate-y-0.5 sm:hover:bg-white/[0.1] sm:hover:shadow-[0_18px_48px_rgba(2,6,23,0.28)] ${
+                      isSingleWorkbookCategory ? "lg:p-7" : ""
+                    }`}
                   >
-                    <h3 className="text-lg font-semibold text-slate-950">
-                      {link.label}
-                    </h3>
-                    <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
-                      {link.description}
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-sky-300/20 bg-sky-300/10 text-sm font-semibold text-sky-100">
+                        {index + 1}
+                      </span>
+                      <h3 className="text-base font-semibold text-white sm:text-lg">
+                        {item.label}
+                      </h3>
+                    </div>
+                    <p className="mt-4 text-xs leading-6 text-slate-300 sm:text-sm">
+                      {item.description}
                     </p>
-                    <a
-                      href={link.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                    >
-                      問題集を開く
-                    </a>
-                    <p className="mt-3 break-all text-xs leading-5 text-slate-400">
-                      {link.href}
-                    </p>
+
+                    {item.childLinks?.length ? (
+                      <div
+                        className={`mt-5 space-y-3 ${
+                          isSingleWorkbookCategory ? "lg:space-y-4" : ""
+                        }`}
+                      >
+                        {item.childLinks.map((childLink) => (
+                          <a
+                            key={childLink.id}
+                            href={childLink.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`group block overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-[0_16px_36px_rgba(15,23,42,0.11)] ${
+                              isSingleWorkbookCategory
+                                ? "lg:border-white/15 lg:bg-white lg:shadow-[0_18px_48px_rgba(15,23,42,0.16)]"
+                                : ""
+                            }`}
+                          >
+                            <div
+                              className={`flex min-h-[148px] flex-col justify-between px-4 py-4 text-slate-900 sm:px-5 sm:py-5 ${
+                                isSingleWorkbookCategory
+                                  ? "lg:min-h-[124px] lg:flex-row lg:items-center lg:gap-6 lg:px-7 lg:py-6"
+                                  : ""
+                              }`}
+                            >
+                              <div className={isSingleWorkbookCategory ? "lg:flex-1" : ""}>
+                                <span
+                                  className={`text-xs font-bold tracking-tight text-slate-950 sm:text-base ${
+                                    isSingleWorkbookCategory ? "lg:text-lg" : ""
+                                  }`}
+                                >
+                                  {childLink.label}
+                                </span>
+                                <p
+                                  className={`mt-3 text-xs leading-6 text-slate-600 sm:text-sm ${
+                                    isSingleWorkbookCategory ? "lg:mt-2 lg:max-w-3xl" : ""
+                                  }`}
+                                >
+                                  {childLink.description}
+                                </p>
+                              </div>
+                              <div
+                                className={`mt-4 flex items-center gap-3 ${
+                                  isSingleWorkbookCategory ? "lg:mt-0 lg:shrink-0" : ""
+                                }`}
+                              >
+                                <span
+                                  className={`inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 ${
+                                    isSingleWorkbookCategory
+                                      ? "lg:bg-slate-950 lg:px-4 lg:py-2 lg:text-xs lg:text-white"
+                                      : ""
+                                  }`}
+                                >
+                                  ankimaker.com
+                                </span>
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <a
+                          href={item.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-[11px] font-semibold text-slate-950 transition hover:bg-slate-100 sm:text-sm"
+                        >
+                          {item.label}の問題集を開く
+                        </a>
+                        <p className="mt-3 break-all text-xs leading-5 text-slate-400">
+                          {item.href}
+                        </p>
+                      </>
+                    )}
                   </article>
                 ))}
               </div>
             </section>
 
-            <aside className="space-y-5">
-              <section className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5 sm:p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+              <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.14)] sm:p-7">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700 sm:text-xs">
                   Purchase History
                 </p>
                 <div className="mt-4 grid gap-3">
                   {purchases.map((purchase) => (
                     <div
                       key={purchase.id}
-                      className="rounded-[1.25rem] border border-slate-200 bg-white p-4"
+                      className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4"
                     >
-                      <p className="text-sm font-semibold text-slate-950">
+                      <p className="text-xs font-semibold text-slate-950 sm:text-sm">
                         {purchase.product?.shortName ?? purchase.productName}
                       </p>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                      <p className="mt-1 text-xs leading-5 text-slate-600 sm:text-sm sm:leading-6">
                         {purchase.paidAt.toLocaleDateString("ja-JP")} / 決済状態:{" "}
                         {purchase.paymentStatus}
                       </p>
@@ -173,28 +291,28 @@ export default async function LibraryPage({ searchParams }: LibraryPageProps) {
                 </div>
               </section>
 
-              <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-5 shadow-[0_12px_40px_rgba(2,6,23,0.2)] backdrop-blur sm:p-7">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-100/75 sm:text-xs">
                   Notes
                 </p>
                 <ul className="mt-4 grid gap-3">
-                  <li className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                  <li className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-xs leading-5 text-slate-200 sm:text-sm sm:leading-6">
                     このリンクは購入者向けです。必要に応じて再発行できます。
                   </li>
-                  <li className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                  <li className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-xs leading-5 text-slate-200 sm:text-sm sm:leading-6">
                     追加購入した場合も、同じメールアドレスなら同じページにまとまって表示できます。
                   </li>
                 </ul>
                 <div className="mt-5 flex flex-col gap-3">
                   <Link
-                    href="/"
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    href="/purchase-access"
+                    className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-xs font-semibold text-slate-950 transition hover:bg-slate-100 sm:text-sm"
                   >
-                    一覧ページへ戻る
+                    メールから再取得する
                   </Link>
                 </div>
               </section>
-            </aside>
+            </div>
           </div>
         </section>
       </div>

@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import { getPurchasedWorkbookLinks, getProductBySlug, type ProductSlug } from "@/lib/products";
+import {
+  getPurchasedWorkbookLinks,
+  getProductBySlug,
+  type ProductSlug,
+  type PurchasedWorkbookLink,
+} from "@/lib/products";
 
 export type PurchaseAccessEmailPayload = {
   subject: string;
@@ -30,7 +35,7 @@ export function getPurchaseAccessUrl(baseUrl: string, token: string) {
 }
 
 export function getAccessibleWorkbookLinks(productSlugs: string[]) {
-  const workbookLinks = new Map<string, ReturnType<typeof getPurchasedWorkbookLinks>[number]>();
+  const workbookLinks = new Map<string, PurchasedWorkbookLink>();
 
   for (const slug of productSlugs) {
     const product = getProductBySlug(slug);
@@ -40,10 +45,27 @@ export function getAccessibleWorkbookLinks(productSlugs: string[]) {
     }
 
     for (const link of getPurchasedWorkbookLinks(product.slug as ProductSlug)) {
-      if (link.childLinks?.length) {
-        for (const childLink of link.childLinks) {
-          workbookLinks.set(childLink.id, childLink);
+      const existingLink = workbookLinks.get(link.id);
+
+      if (existingLink && (existingLink.childLinks?.length || link.childLinks?.length)) {
+        const childLinks = new Map(
+          existingLink.childLinks?.map((childLink) => [childLink.id, childLink]),
+        );
+
+        for (const childLink of link.childLinks ?? []) {
+          childLinks.set(childLink.id, childLink);
         }
+
+        workbookLinks.set(link.id, {
+          ...existingLink,
+          childLinks: [...childLinks.values()],
+        });
+
+        continue;
+      }
+
+      if (link.childLinks?.length) {
+        workbookLinks.set(link.id, { ...link, childLinks: [...link.childLinks] });
         continue;
       }
 
