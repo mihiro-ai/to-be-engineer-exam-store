@@ -146,7 +146,7 @@ export const products: StudyProduct[] = [
     category: "機械・電気電子・情報",
     priceLabel: "セット版",
     questionCount: "合計約750問",
-    amount: 1300,
+    amount: 2100,
     currency: "jpy",
     imagePath: "/full-set.png",
     description:
@@ -188,7 +188,7 @@ export const products: StudyProduct[] = [
     category: "機械",
     priceLabel: "分野別",
     questionCount: "約200問",
-    amount: 500,
+    amount: 800,
     currency: "jpy",
     imagePath: "/mechanical.png",
     description:
@@ -228,7 +228,7 @@ export const products: StudyProduct[] = [
     category: "電気電子",
     priceLabel: "分野別",
     questionCount: "約300問",
-    amount: 500,
+    amount: 800,
     currency: "jpy",
     imagePath: "/electrical.png",
     description:
@@ -268,7 +268,7 @@ export const products: StudyProduct[] = [
     category: "情報",
     priceLabel: "分野別",
     questionCount: "約250問",
-    amount: 500,
+    amount: 800,
     currency: "jpy",
     imagePath: "/information.png",
     description:
